@@ -1,0 +1,35 @@
+label start
+ask "Which number should I print? "
+
+try
+    number @save
+catch
+    say "Not a valid number.\n"
+    goto start
+finally
+
+let number @save
+
+rpn "> a b" number 3000
+if @save end_3000 next
+
+rpn "> a b" number 2000
+if @save end_2000 next
+
+rpn "> a b" number 1000
+if @save end_1000 end_thousands
+
+label end_3000
+say "AAA"
+goto end_thousands
+
+label end_2000
+say "BB"
+goto end_thousands
+
+label end_1000
+say "C"
+
+label end_thousands
+
+say "\n"

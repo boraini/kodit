@@ -1,0 +1,6 @@
+label start
+say "Orada bir köy var uzakta\n"
+say "O köy bizim köyümüzdür\n"
+say "Gezmesek de tozmasak da\n"
+say "O köy bizim köyümüzdür\n\n"
+goto start
