@@ -30,7 +30,6 @@ impl VM {
         // We don't remove empty lines because possible debugging would require the exact line number.
         for line in lines {
             let decomposed = decompose_line(&line);
-
             code.push(decomposed);
         }
 
@@ -138,7 +137,7 @@ impl VM {
         }
     }
 
-    pub fn line_item_as_value(&self, item: &LineItem) -> Result<Value, &str> {
+    pub fn line_item_as_value(&self, item: &LineItem) -> Result<Value, String> {
         match item.item_type {
             LineItemType::NUMBER => Ok(Value {
                 value_type: super::value::ValueType::Number,
@@ -154,7 +153,7 @@ impl VM {
             }),
             LineItemType::LABEL => match self.read_variable(&item.string_value) {
                 Some(v) => Ok(v.clone()),
-                None => Err("Variable not found."),
+                None => Err(format!("Variable {} not found.", item.string_value)),
             },
             LineItemType::COMMAND => panic!("Unexpected argument of type command."),
         }
