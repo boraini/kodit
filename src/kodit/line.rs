@@ -22,24 +22,24 @@ pub fn decompose_line(line: &String) -> Vec<LineItem> {
     let mut current_line = &line[..];
 
     loop {
-        let startspace = current_line.find(|c| c != ' ' && c != '\t');
+        let startspace = current_line.find(|c| !char::is_whitespace(c));
 
         let start = match startspace {
             None => return line_items,
             Some(idx) => idx,
         };
 
-        let endspace = current_line[start..].find(|c| c == ' ' || c == '\t');
+        let endspace = current_line[start..].find(char::is_whitespace);
 
         let end = match endspace {
             None => current_line.len(),
-            Some(idx) => idx,
+            Some(idx) => idx + start,
         };
 
         if start >= end {
             break;
         }
-
+        
         if line_items.is_empty() {
             let command = line[start..end].to_owned();
 
