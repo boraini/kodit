@@ -1,0 +1,130 @@
+// Input tape structure:
+// dimension 0: the tape
+
+// Input states structure:
+// States go like 0, 1, 2 ... to but excluding the number of states
+// The tape alphabet should be 0 1 2 ... to but excluding the number of symbols
+
+// The machine is described as a table data structure
+// dimension 0: each row (dimension 1) is a state description
+// dimension 1: [0 for reject, 1 for accept, 2 to continue] ...[rest of the column (dimension 2) is a jump table]
+// dimension 2: [next state] [symbol to print] [-1 to move left, 1 to move right]
+
+// Example Turing machine representation with three states and a tape alphabet of {0, 1}
+// This Turing machine will accept iff the input tape starts with an even number of ones.
+
+// X means don't care
+// state 0 (even state): [
+//     [2, X, X],  // this state doesn't halt
+//     [2, 0, -1], // if symbol is 0
+//     [1, 1, 1]   // if symbol is 1
+// ]
+// state 1 (odd state): [
+//     [2, X, X],
+//     [3, 0, -1],
+//     [0, 1, 1]
+// ]
+// state 2 (accepting state): [
+//     [1, X, X],  // this state is accepting
+//     [X, X, X],
+//     [X, X, X]
+// ]
+// state 2 (rejecting state): [
+//     [0, X, X],  // this state is rejecting
+//     [X, X, X],
+//     [X, X, X]
+// ]
+
+// Nice table notation?
+set test_machine [4 3 3][
+    2 0 0
+    2 0 -1
+    1 1 1
+
+    2 0 0
+    3 0 -1
+    0 1 1
+    
+    1 1 1
+    1 1 1
+    1 1 1
+
+    0 0 0
+    0 0 0
+    0 0 0
+]
+set test_input [8][1 1 1 1 1 0 1 0]
+set test_start_state 0
+set test_tape_size 8
+set test_alphabet_size 2
+
+call operate_turing_machine test_start_state test_tape_size test_alphabet_size test_machine test_input
+if @save HALT_ACCEPT HALT_REJECT
+
+label HALT_ACCEPT
+say "The program has accepted the input."
+label HALT_REJECT
+say "The program has rejected the input."
+label HALT_END
+
+/// Operates a Turing machine and returns its halting behaviour for the given input.
+/// start_state: A valid index in the dimension 0 of machine. The start state
+/// tape_size: The length of the input tape
+/// alphabet_size: The length of the dimension 1 of machine. Number of possible symbols on the tape
+/// machine: See the guide on top of this file
+/// input: A 1D table that contains the entire length of the input tape. This won't be modified.
+function operate_turing_machine start_state tape_size alphabet_size machine input
+    set current_state start_state
+    set current_position 0
+    set result 2
+
+    // make a copy of the input tape
+    table tape tape_size
+    label copy_start
+        get input current_position
+        put tape current_position @save
+
+        sum current_position + 1
+        set current_position @save
+
+        sum current_position == tape_size
+        if @save copy_end copy_start
+    label copy_end
+
+    set current_position 0
+    label loop_start
+        // get the current state description
+        sum current_state 1
+        set current_state_end @save
+        sum alphabet_size 1
+        slice machine              current_state 0 0        current_state_end @save 3
+        set state_description @save
+
+        // save the result return if halting
+        get state_description 0 0
+        set result @save
+        sum result == 2
+        if @save next loop_end
+        
+        // read symbol from tape
+        get tape current_position
+        set current_symbol @save
+
+        // get rule index
+        sum current_symbol 1
+        set rule_index @save
+
+        // do printing
+        get state_description      0 rule_index 1
+        put tape current_position @save
+
+        // do moving
+        get state_description      0 rule_index 2
+        sum current_position + @save
+        set current_position @save
+
+        // set state
+        get state_description      0 rule_index 0
+        set current_state @save
+    label loop_end
+    return result

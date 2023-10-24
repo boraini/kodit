@@ -1,0 +1,5 @@
+ask "What is your name? "
+say "Hello, "
+set my_variable @save
+say my_variable @save
+say "!\n"
