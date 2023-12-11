@@ -14,6 +14,7 @@ pub struct TableManager {
     tables: HashMap<usize, Table>,
 }
 
+// Constructor
 impl TableManager {
     pub fn new() -> TableManager {
         TableManager {
@@ -21,9 +22,70 @@ impl TableManager {
             tables: HashMap::new(),
         }
     }
+}
 
+// Read/Write
+impl TableManager {
+    fn calculate_data_index(table: &Table, table_value: &Value, dimensions: &Vec<usize>) -> Result<usize, &'static str> {
+        if table.dimensions.len() != dimensions.len() {
+            return Err("Dimension numbers don't match.")
+        }
+
+        let number = dimensions.iter()
+            .zip(table.dimensions.iter())
+            .fold(0usize, |acc, (idx, dim)| dim * acc + idx);
+
+        Ok(number)
+    }
+
+    pub fn get_dimensions(&self, table_value: &Value) -> Result<&Vec<usize>, &'static str> {
+        let table = match self.tables.get(&table_value.table_index) {
+            Some(t) => t,
+            None => return Err("Table not found by index.")
+        };
+
+        Ok(&table.dimensions)
+    }
+
+    pub fn get(&self, table_value: &Value, dimensions: &Vec<usize>) -> Result<&Value, &'static str> {
+        let table = match self.tables.get(&table_value.table_index) {
+            Some(t) => t,
+            None => return Err("Table not found by index.")
+        };
+
+        let index = match Self::calculate_data_index(table, table_value, dimensions) {
+            Ok(idx) => idx,
+            Err(e) => return Err(e),
+        };
+
+        let candidate_value = table.data.get(index).unwrap();
+
+        if candidate_value.is_uninitialized() {
+            Err("Field is not initialized.")
+        } else {
+            Ok(candidate_value)
+        }
+    }
+
+    pub fn put(&mut self, table_value: &Value, dimensions: &Vec<usize>, value: Value) -> Result<(), &'static str> {
+        let table = match self.tables.get_mut(&table_value.table_index) {
+            Some(t) => t,
+            None => return Err("Table not found by index.")
+        };
+
+        let index = match Self::calculate_data_index(table, table_value, dimensions) {
+            Ok(idx) => idx,
+            Err(e) => return Err(e),
+        };
+
+        table.data[index] = value.clone();
+        Ok(())
+    }
+}
+
+// Garbage Collection
+impl TableManager {
     pub fn create_table(&mut self, dimensions: &Vec<usize>) -> Value {
-        const UNINITIALIZED: Option<Value> = None;
         let length: usize = dimensions.iter().product();
 
         let table = Table {

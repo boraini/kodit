@@ -68,7 +68,7 @@ pub fn decompose_line(line: &String) -> Vec<LineItem> {
                     }
                 }
 
-                let the_string = snailquote::unescape(&current_line[start + 1..position]);
+                let the_string = snailquote::unescape(&current_line[start..position + 1]);
 
                 line_items.push(LineItem { item_type: LineItemType::STRING, string_value: the_string.unwrap(), number_value: 0.0 });
 
