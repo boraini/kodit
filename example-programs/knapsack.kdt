@@ -1,0 +1,102 @@
+// Source: https://en.wikipedia.org/wiki/Knapsack_problem
+
+table test_weights 11
+put test_weights 1 23
+put test_weights 2 26
+put test_weights 3 20
+put test_weights 4 18
+put test_weights 5 32
+put test_weights 6 27
+put test_weights 7 29
+put test_weights 8 26
+put test_weights 9 30
+put test_weights 10 27
+
+table test_values 11
+put test_values 1 505
+put test_values 2 352
+put test_values 3 458
+put test_values 4 220
+put test_values 5 354
+put test_values 6 414
+put test_values 7 498
+put test_values 8 545
+put test_values 9 473
+put test_values 10 543
+
+call knapsack 67 10 test_weights test_values
+say "The dynamic programming algorithm found the maximum value to be: "
+say @save
+say ".\n"
+
+goto end
+function knapsack w n weights values
+    sum w + 1
+    set w_size @save
+
+    sum n + 1
+    set n_size @save
+
+    table memo w_size n_size
+
+    set current_w 0
+
+    for zero_w_start zero_w_end current_w w_size
+        put memo current_w 0 0
+    continue zero_w_start
+    label zero_w_end
+
+    set current_n 0
+
+    for zero_n_start zero_n_end current_n n_size
+        put memo 0 current_n 0
+    continue zero_n_start
+    label zero_n_end
+    
+    set current_n 1
+    for loop_n_start loop_n_end current_n n_size
+
+        get weights current_n
+        set current_weight @save
+
+        get values current_n
+        set current_value @save
+
+        sum current_n - 1
+        set prev_n @save
+
+        set current_w 1
+        for loop_w_start loop_w_end current_w w_size
+            
+            get memo current_w prev_n
+            set value_without_current @save
+
+            sum current_weight > current_w
+            if @save weight_not_suitable weight_suitable
+
+            label weight_not_suitable
+                put memo current_w current_n value_without_current
+        continue loop_w_start
+
+            label weight_suitable
+                sum current_w - current_weight
+                set weight_without_current @save
+                
+                get memo weight_without_current prev_n
+                sum @save + current_value
+                set candidate_value @save
+
+                // bad code - we don't obey structured programming principles
+                sum candidate_value > value_without_current
+                if @save new_value_larger weight_not_suitable
+                label new_value_larger
+                    put memo current_w current_n candidate_value
+        continue loop_w_start
+        label loop_w_end
+
+    continue loop_n_start
+    label loop_n_end
+
+    get memo w n
+    return @save
+label end
