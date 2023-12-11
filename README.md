@@ -115,6 +115,28 @@ say "The number is negative."
 label end_sign_check
 ```
 
+The for command is there to simplify some loop creation. It takes a name, end label name, an index variable name, and an exclusive end value name. It can optionally also take a step value, which defaults to 1. The index variable has to be set to the start value before the loop is reached. If the index variable is less than the end value (or greater if the increment value is negative), the program will continue, otherwise it will jump to the end label. goto, if, continue etc. can all jump to a for line by taking its name - the condition will still be checked.
+
+The continue command is like the goto command except it can only jump to for lines. It will perform the jump and also increment/decrement the index variable.
+
+```
+set i 0
+for loop1_start loop1_end i 11
+// 1 2 3 4 5 6 7 8 9 10
+say i
+say " "
+continue loop1_start
+label loop1_end
+
+set i 10
+for loop2_start loop2_end i 0 -2
+// 10 8 6 4 2
+say i
+say " "
+continue loop2_start
+label loop2_end
+```
+
 Functions are special labels which can push a new call stack frame if jumped through a call command, and will assign a set of variables in the current frame. The return command will set the @save variable, jump to the line after call, and drop a call stack frame in contrast. The variable scoping is illustrated below.
 
 ```
