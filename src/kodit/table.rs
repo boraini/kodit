@@ -31,6 +31,15 @@ impl TableManager {
             return Err("Dimension numbers don't match.")
         }
 
+        let check_each_dimension = dimensions.iter()
+            .zip(table.dimensions.iter())
+            .all(|(a, b)| a >= &0 && a < b);
+        
+        if !check_each_dimension {
+            print!("Index out of bounds for indices {:?} out of {:?}.", dimensions, table.dimensions);
+            return Err("Index out of bounds. See above.");
+        }
+
         let number = dimensions.iter()
             .zip(table.dimensions.iter())
             .fold(0usize, |acc, (idx, dim)| dim * acc + idx);
