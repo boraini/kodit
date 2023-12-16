@@ -503,6 +503,13 @@ impl VM {
                     ">=" => v1.number_value >= v2.number_value,
                     _ => todo!(),
                 })),
+				(ValueType::String, ValueType::String) => Ok(Value::boolean_value(match operand.as_str() {
+					"<" => v1.string_value.as_ref().unwrap() < v2.string_value.as_ref().unwrap(),
+                    ">" => v1.string_value.as_ref().unwrap() > v2.string_value.as_ref().unwrap(),
+                    "<=" => v1.string_value.as_ref().unwrap() <= v2.string_value.as_ref().unwrap(),
+                    ">=" => v1.string_value.as_ref().unwrap() >= v2.string_value.as_ref().unwrap(),
+                    _ => todo!(),
+				})),
                 _ => Err("Numerical operation used with non-number arguments."),
             },
             _ => Err("Unsupported operand."),
