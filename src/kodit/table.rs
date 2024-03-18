@@ -26,7 +26,7 @@ impl TableManager {
 
 // Read/Write
 impl TableManager {
-    fn calculate_data_index(table: &Table, table_value: &Value, dimensions: &Vec<usize>) -> Result<usize, &'static str> {
+    fn calculate_data_index(table: &Table, _table_value: &Value, dimensions: &Vec<usize>) -> Result<usize, &'static str> {
         if table.dimensions.len() != dimensions.len() {
             return Err("Dimension numbers don't match.")
         }
@@ -88,6 +88,22 @@ impl TableManager {
         };
 
         table.data[index] = value.clone();
+        Ok(())
+    }
+
+    pub fn write_raw(&mut self, table_value: &Value, data: &Vec<Value>) -> Result<(), &'static str> {
+        let table = match self.tables.get_mut(&table_value.table_index) {
+            Some(t) => t,
+            None => return Err("Table not found by index.")
+        };
+
+        let max_capacity: usize = table.dimensions.iter().product();
+
+        if data.len() > max_capacity {
+            panic!("Data to fill in is too much.");
+        }
+
+        table.data[0..data.len()].clone_from_slice(data);
         Ok(())
     }
 }

@@ -16,7 +16,8 @@ fn main() {
 
     let lines = io::BufReader::new(file).lines();
 
-    let mut vm = kodit::VM::VM::new();
+    let mut vm = kodit::vm::VM::new();
 
-    vm.evaluate_lines(path, lines.map(|line| {line.unwrap()}).collect());
+    let lines: Vec<String> = lines.map(|line| {line.unwrap()}).collect();
+    vm.evaluate_lines(path, &lines);
 }
