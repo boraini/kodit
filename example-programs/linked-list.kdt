@@ -1,0 +1,76 @@
+set true 1
+set false 0
+
+call linked_stack
+set my_linked_stack @save
+
+call offer_linked_stack my_linked_stack 5
+call offer_linked_stack my_linked_stack 8
+call get_linked_stack_size my_linked_stack
+say "The linked stack size is "
+say @save
+say "\n"
+call poll_linked_stack my_linked_stack
+say "I remove first "
+say @save
+say "\n"
+call poll_linked_stack my_linked_stack
+say "I remove second "
+say @save
+say "\n"
+call poll_linked_stack my_linked_stack
+
+goto END
+
+function linked_stack
+    return [2] [0 [3] [true 0 0]]
+
+function get_linked_stack_size stack
+    get stack 0
+    return @save
+
+function offer_linked_stack stack item
+    //increment the size of the stack
+    get stack 0
+    sum @save + 1
+    put stack 0 @save
+
+    //create the new head
+    table new_head 3
+
+    //mark the new head as not sentinel
+    put new_head 0 false
+
+    //put the value into the new head
+    put new_head 1 item
+
+    //put the old head before the new head
+    get stack 1
+    put new_head 2 @save
+    put stack 1 new_head
+    return
+
+function poll_linked_stack stack
+    //check if the stack was empty
+    get stack 1
+    set current_head @save
+    get current_head 0
+    if @save stack_is_empty stack_is_not_empty
+    label stack_is_empty
+        say "The stack was empty. Returning 0."
+        return 0
+    label stack_is_not_empty
+        //decrement the size of the stack
+        get stack 0
+        sum @save - 1
+        put stack 0 @save
+
+        //remove the current head
+        get current_head 2
+        put stack 1 @save
+
+        //return the value
+        get current_head 1
+        return @save
+
+label END
