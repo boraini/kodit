@@ -36,7 +36,7 @@
 // ]
 
 // Nice table notation?
-set test_machine [4 3 3][
+set test_machine [4 3 3] [
     2 0 0
     2 0 -1
     1 1 1
@@ -53,7 +53,7 @@ set test_machine [4 3 3][
     0 0 0
     0 0 0
 ]
-set test_input [8][1 1 1 1 1 0 1 0]
+set test_input [8] [1 1 1 1 1 0 1 0]
 set test_start_state 0
 set test_tape_size 8
 set test_alphabet_size 2
@@ -63,9 +63,13 @@ if @save HALT_ACCEPT HALT_REJECT
 
 label HALT_ACCEPT
 say "The program has accepted the input."
+goto HALT_END
+
 label HALT_REJECT
 say "The program has rejected the input."
 label HALT_END
+
+goto END
 
 /// Operates a Turing machine and returns its halting behaviour for the given input.
 /// start_state: A valid index in the dimension 0 of machine. The start state
@@ -94,14 +98,17 @@ function operate_turing_machine start_state tape_size alphabet_size machine inpu
     set current_position 0
     label loop_start
         // get the current state description
-        sum current_state 1
+        sum current_state + 1
         set current_state_end @save
-        sum alphabet_size 1
+        sum alphabet_size + 1
+        say "current state: "
+        say current_state
+        say "\n"
         slice machine              current_state 0 0        current_state_end @save 3
         set state_description @save
 
         // save the result return if halting
-        get state_description 0 0
+        get state_description 0 0 0
         set result @save
         sum result == 2
         if @save next loop_end
@@ -111,7 +118,7 @@ function operate_turing_machine start_state tape_size alphabet_size machine inpu
         set current_symbol @save
 
         // get rule index
-        sum current_symbol 1
+        sum current_symbol + 1
         set rule_index @save
 
         // do printing
@@ -126,5 +133,8 @@ function operate_turing_machine start_state tape_size alphabet_size machine inpu
         // set state
         get state_description      0 rule_index 0
         set current_state @save
+    goto loop_start
     label loop_end
     return result
+
+label END
