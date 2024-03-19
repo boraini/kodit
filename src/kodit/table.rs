@@ -26,10 +26,14 @@ impl TableManager {
 
 // Read/Write
 impl TableManager {
-    fn calculate_data_index(table: &Table, _table_value: &Value, dimensions: &Vec<usize>) -> Result<usize, &'static str> {
+    fn calculate_data_index(table: &Table, table_value: &Value, mut dimensions: Vec<usize>) -> Result<usize, &'static str> {
         if table.dimensions.len() != dimensions.len() {
             return Err("Dimension numbers don't match.")
         }
+
+        dimensions.iter_mut()
+            .zip(table_value.slice_offset.as_ref().ok_or("Value is not a table.")?)
+            .for_each(|(a, b)| *a += b);
 
         let check_each_dimension = dimensions.iter()
             .zip(table.dimensions.iter())
@@ -56,7 +60,7 @@ impl TableManager {
         Ok(&table.dimensions)
     }
 
-    pub fn get(&self, table_value: &Value, dimensions: &Vec<usize>) -> Result<&Value, &'static str> {
+    pub fn get(&self, table_value: &Value, dimensions: Vec<usize>) -> Result<&Value, &'static str> {
         let table = match self.tables.get(&table_value.table_index) {
             Some(t) => t,
             None => return Err("Table not found by index.")
@@ -76,7 +80,7 @@ impl TableManager {
         }
     }
 
-    pub fn put(&mut self, table_value: &Value, dimensions: &Vec<usize>, value: Value) -> Result<(), &'static str> {
+    pub fn put(&mut self, table_value: &Value, dimensions: Vec<usize>, value: Value) -> Result<(), &'static str> {
         let table = match self.tables.get_mut(&table_value.table_index) {
             Some(t) => t,
             None => return Err("Table not found by index.")
@@ -139,6 +143,7 @@ impl TableManager {
             value_type: ValueType::Table,
             string_value: None,
             number_value: 0f64,
+            slice_offset: Some(vec![0usize; dimensions.len()]),
         }
     }
 

@@ -10,16 +10,35 @@ use super::table::*;
 
 pub struct VM {
     pub environment: Vec<Environment>,
-    pub labels: HashMap<String, Label>,
+    pub labels: LabelMap,
     pub table_manager: TableManager,
     pub table_creations: u32,
+}
+
+pub struct LabelMap(HashMap<String, Label>);
+
+impl LabelMap {
+    pub fn get_line_number_with_inferred(&self, label_name: &str, current_line_number: &usize) -> Option<usize> {
+        if label_name == "next" {
+            Some(current_line_number + 1)
+        } else {
+            self.get(label_name).map(|l| l.line_number)
+        }
+    }
+    pub fn get(&self, label_name: &str) -> Option<&Label> {
+        self.0.get(label_name)
+    }
+
+    pub fn insert(&mut self, label_name: String, value: Label) {
+        self.0.insert(label_name, value);
+    }
 }
 
 impl VM {
     pub fn new() -> Self {
         VM {
             environment: vec![Environment::that_returns_to(None)],
-            labels: HashMap::new(),
+            labels: LabelMap(HashMap::new()),
             table_manager: TableManager::new(),
             table_creations: 0,
         }
@@ -68,129 +87,125 @@ impl VM {
                     Command::CALL => {
                         let label_text = match &current_line.items[1] {
                             LineItem::Label(label) | LineItem::String(label) => label, // Rust is cool!
-                            _ => panic!("Error at line {}: Cannot call function with a non-label and non-string qualifier.", current_line_number),
+                            _ => panic!("Error at line {}: Cannot call function with a non-label and non-string qualifier.", current_line.line_number),
                         };
                         let jump_target = match self.labels.get(label_text) {
                             Some(l) => l,
-                            None => panic!("Error at line {}: Function not known.", current_line_number),
+                            None => panic!("Error at line {}: Function not known.", current_line.line_number),
                         };
                         match self.call_function(&code[jump_target.line_number], current_line, file, jump_target.line_number, current_line_number) {
                             Ok(l) => current_line_number = l.line_number,
-                            Err(e) => panic!("Error at line {}: {}", current_line_number, e),
+                            Err(e) => panic!("Error at line {}: {}", current_line.line_number, e),
                         };
                     },
                     Command::RETURN => {
                         current_line_number = match self.return_from_function(current_line, current_line_number) {
                             Ok(l) => l.line_number,
-                            Err(e) => panic!("Error at line {}: {}", current_line_number, e),
+                            Err(e) => panic!("Error at line {}: {}", current_line.line_number, e),
                         }
                     },
                     Command::GOTO => {
                         let label_text = match &current_line.items[1] {
                             LineItem::Label(label) => label,
-                            _ => panic!("Error at line {}: Cannot go to non-label.", current_line_number),
+                            _ => panic!("Error at line {}: Cannot go to non-label.", current_line.line_number),
                         };
 
-                        let label = match self.labels.get(label_text) {
-                            Some(label) => label,
-                            None => panic!("Error at line {}: Label not known.", current_line_number),
+                        current_line_number = match self.labels.get_line_number_with_inferred(label_text, &current_line_number) {
+                            Some(n) if n < code.len() => n,
+                            _ => panic!("Error at line {}: Label not known.", current_line_number),
                         };
-
-                        current_line_number = label.line_number;
                     }
                     Command::IF => {
                         let cond = match self.line_item_as_value(&current_line.items[1]) {
                             Ok(v) => v.clone(),
-                            Err(e) => panic!("Error at line {}: {}", current_line_number, e),
+                            Err(e) => panic!("Error at line {}: {}", current_line.line_number, e),
                         };
 
                         let which_label = if cond.as_boolean() {2usize} else {3usize};
                         let label_text = match &current_line.items[which_label] {
                             LineItem::Label(label) => label,
-                            _ => panic!("Error at line {}: Cannot go to non-label.", current_line_number),
+                            _ => panic!("Error at line {}: Cannot go to non-label.", current_line.line_number),
                         };
 
-                        let label = match self.labels.get(label_text) {
-                            Some(label) => label,
-                            None => panic!("Error at line {}: Label not known.", current_line_number),
+                        current_line_number = match self.labels.get_line_number_with_inferred(label_text, &current_line_number) {
+                            Some(n) if n < code.len() => n,
+                            _ => panic!("Error at line {}: Label not known.", current_line_number),
                         };
-
-                        current_line_number = label.line_number;
                     }
                     Command::FOR => {
                         let end_value = match self.line_item_as_value(&current_line.items[4]) {
                             Ok(v) => v,
-                            Err(e) => panic!("Error at line {}: {}", current_line_number, e),
+                            Err(e) => panic!("Error at line {}: {}", current_line.line_number, e),
                         };
 
                         let label_end_text = match &current_line.items[2] {
                             LineItem::Label(label) => label,
-                            _ => panic!("Error at line {}: Cannot go to non-label.", current_line_number),
+                            _ => panic!("Error at line {}: Cannot go to non-label.", current_line.line_number),
                         };
 
-                        let label_end = match self.labels.get(label_end_text) {
-                            Some(label) => label,
-                            None => panic!("Error at line {}: Label not known.", current_line_number),
+                        let label_end_line_number = match self.labels.get_line_number_with_inferred(label_end_text, &current_line_number) {
+                            Some(n) if n < code.len() => n,
+                            _ => panic!("Error at line {}: Label not known.", current_line_number),
                         };
 
                         let variable_name = match &current_line.items[3] {
                             LineItem::Label(label) => label,
-                            _ => panic!("Error at line {}: Loop variable invalid.", current_line_number),
+                            _ => panic!("Error at line {}: Loop variable invalid.", current_line.line_number),
                         };
 
                         let value = match self.read_variable(variable_name) {
                             Some(v) => v,
-                            None => panic!("Error at line {}: For loop variable not found.", current_line_number),
+                            None => panic!("Error at line {}: For loop variable not found.", current_line.line_number),
                         };
 
                         let current = match value.value_type {
                             ValueType::Number => value.number_value,
-                            _ => panic!("Error at line {}: Can only iterate with numbers.", current_line_number),
+                            _ => panic!("Error at line {}: Can only iterate with numbers.", current_line.line_number),
                         };
 
                         let compare = match end_value.value_type {
                             ValueType::Number => end_value.number_value,
-                            _ => panic!("Error at line {}: Can only iterate with numbers.", current_line_number),
+                            _ => panic!("Error at line {}: Can only iterate with numbers.", current_line.line_number),
                         };
 
                         if current < compare {
                             current_line_number += 1;
                         } else {
-                            current_line_number = label_end.line_number;
+                            current_line_number = label_end_line_number;
                         }
                     }
                     Command::CONTINUE => {
                         let label_text = match &current_line.items[1] {
                             LineItem::Label(label) => label,
-                            _ => panic!("Error at line {}: Cannot go to non-label.", current_line_number),
+                            _ => panic!("Error at line {}: Cannot go to non-label.", current_line.line_number),
                         };
 
-                        let label = match self.labels.get(label_text) {
-                            Some(label) => label,
-                            None => panic!("Error at line {}: Label not known.", current_line_number),
+                        let label_line_number = match self.labels.get_line_number_with_inferred(label_text, &current_line_number) {
+                            Some(n) if n < code.len() => n,
+                            _ => panic!("Error at line {}: Label not known.", current_line_number),
                         };
 
-                        current_line_number = label.line_number;
+                        current_line_number = label_line_number;
 
                         let current_line = &code[current_line_number];
 
                         if !matches!(current_line.items[0], LineItem::Command(Command::FOR)) {
-                            panic!("Error at line {}: Can only continue to a for line.", label.line_number);
+                            panic!("Error at line {}: Can only continue to a for line.", label_line_number);
                         }
 
                         let variable_name = match &current_line.items[3] {
                             LineItem::Label(label) => label,
-                            _ => panic!("Error at line {}: Cannot go to non-label.", current_line_number),
+                            _ => panic!("Error at line {}: Cannot go to non-label.", current_line.line_number),
                         };
 
                         let value = match self.read_variable(variable_name) {
                             Some(v) => v,
-                            None => panic!("Error at line {}: For loop variable not found.", label.line_number),
+                            None => panic!("Error at line {}: For loop variable not found.", label_line_number),
                         };
 
                         let new_value = match value.value_type {
                             ValueType::Number => value.number_value,
-                            _ => panic!("Error at line {}: Can only iterate with numbers.", current_line_number),
+                            _ => panic!("Error at line {}: Can only iterate with numbers.", current_line.line_number),
                         }.round() as i32 + 1;
 
                         self.assign_variable(variable_name, Value::number_value(new_value as f64));
@@ -198,32 +213,32 @@ impl VM {
                     Command::SUM => {
                         let operand = match &current_line.items[2] {
                             LineItem::Label(label) => label,
-                            _ => panic!("Error at line {}: Operand must be a label.", current_line_number),
+                            _ => panic!("Error at line {}: Operand must be a label.", current_line.line_number),
                         };
                         let v1 = match self.line_item_as_value(&current_line.items[1]) {
                             Ok(v) => v,
-                            Err(e) => panic!("Error at line {}: {}", current_line_number, e),
+                            Err(e) => panic!("Error at line {}: {}", current_line.line_number, e),
                         };
                         let v2 = match self.line_item_as_value(&current_line.items[3]) {
                             Ok(v) => v,
-                            Err(e) => panic!("Error at line {}: {}", current_line_number, e),
+                            Err(e) => panic!("Error at line {}: {}", current_line.line_number, e),
                         };
                         let sum = match VM::do_sum(&v1, &v2, &operand) {
                             Ok(v) => v,
-                            Err(e) => panic!("Error at line {}: {}", current_line_number, e),
+                            Err(e) => panic!("Error at line {}: {}", current_line.line_number, e),
                         };
 
                         self.assign_variable(&"@save".to_string(), sum);
                         current_line_number += 1;
                     }
                     Command::SAY => {
-                        let str = self.line_item_to_string(&current_line.items[1], &current_line_number);
+                        let str = self.line_item_to_string(&current_line.items[1], &current_line.line_number);
                         self.say(str);
                         current_line_number += 1;
                     },
                     Command::ASK => {
                         // flush the output also so the user is not confused.
-                        let str = self.line_item_to_string(&current_line.items[1], &current_line_number);
+                        let str = self.line_item_to_string(&current_line.items[1], &current_line.line_number);
                         self.say(str);
                         io::stdout().flush().unwrap();
 
@@ -240,6 +255,7 @@ impl VM {
                             string_value: Some(trimmed.to_string()),
                             number_value: 0f64,
                             table_index: 0,
+                            slice_offset: None,
                         });
 
                         current_line_number += 1;
@@ -247,12 +263,12 @@ impl VM {
                     Command::SET => {
                         let value = match self.line_item_as_value(&current_line.items[2]) {
                             Ok(v) => v.clone(),
-                            Err(e) => panic!("Error at line {}: {}", current_line_number, e),
+                            Err(e) => panic!("Error at line {}: {}", current_line.line_number, e),
                         };
 
                         self.assign_variable(match &current_line.items[1] {
                             LineItem::Label(label) => label,
-                            _ => panic!("Error at line {}: Cannot assign to such variable.", current_line_number),
+                            _ => panic!("Error at line {}: Cannot assign to such variable.", current_line.line_number),
                         }, value);
 
                         current_line_number += 1;
@@ -262,42 +278,42 @@ impl VM {
                             |item| match self.line_item_as_value(item) {
                                 Ok(value) => match value.value_type {
                                     ValueType::Number => value.number_value.round() as usize,
-                                    _ => panic!("Error at line {}: Invalid dimension. Each dimension must be a number.", current_line_number)
+                                    _ => panic!("Error at line {}: Invalid dimension. Each dimension must be a number.", current_line.line_number)
                                 },
-                                Err(e) => panic!("Error at line {}: Invalid dimension. {}", current_line_number, e),
+                                Err(e) => panic!("Error at line {}: Invalid dimension. {}", current_line.line_number, e),
                             }
                         ).collect::<Vec<usize>>();
 
                         self.create_table(match &current_line.items[1] {
                             LineItem::Label(label) => label,
-                            _ => panic!("Error at line {}: Cannot assign to such variable.", current_line_number),
+                            _ => panic!("Error at line {}: Cannot assign to such variable.", current_line.line_number),
                         }, &dimensions);
                         current_line_number += 1;
                     },
                     Command::GET => {
                         let variable_name = match &current_line.items[1] {
                             LineItem::Label(label) => label,
-                            _ => panic!("Error at line {}: Cannot read such variable.", current_line_number),
+                            _ => panic!("Error at line {}: Cannot read such variable.", current_line.line_number),
                         };
                         let table = match self.read_variable(variable_name) {
                             Some(v) => match v.value_type {
                                 ValueType::Table => v,
-                                _ => panic!("Error at line {}: Variable is not a table.", current_line_number),
+                                _ => panic!("Error at line {}: Variable is not a table.", current_line.line_number),
                             },
-                            None => panic!("Error at line {}: Variable {} not found.", current_line_number, variable_name),
+                            None => panic!("Error at line {}: Variable {} not found.", current_line.line_number, variable_name),
                         };
                         let dimensions = current_line.items[2..].iter().map(
                             |item| match self.line_item_as_value_pure(item) {
                                 Ok(value) => match value.value_type {
                                     ValueType::Number => value.number_value.round() as usize,
-                                    _ => panic!("Error at line {}: Invalid dimension. Each dimension must be a number.", current_line_number)
+                                    _ => panic!("Error at line {}: Invalid dimension. Each dimension must be a number.", current_line.line_number)
                                 },
-                                Err(e) => panic!("Error at line {}: Invalid dimension. {}", current_line_number, e),
+                                Err(e) => panic!("Error at line {}: Invalid dimension. {}", current_line.line_number, e),
                             }
                         ).collect::<Vec<usize>>();
-                        let value = match self.table_manager.get(table, &dimensions) {
+                        let value = match self.table_manager.get(table, dimensions) {
                             Ok(v) => v,
-                            Err(e) => panic!("Error at line {}: Error reading from table. {}", current_line_number, e),
+                            Err(e) => panic!("Error at line {}: Error reading from table. {}", current_line.line_number, e),
                         }.clone();
                         self.assign_variable(&"@save".to_string(), value);
                         current_line_number += 1;
@@ -305,38 +321,76 @@ impl VM {
                     Command::PUT => {
                         let variable_name = match &current_line.items[1] {
                             LineItem::Label(label) => label,
-                            _ => panic!("Error at line {}: Cannot read such variable.", current_line_number),
+                            _ => panic!("Error at line {}: Cannot read such variable.", current_line.line_number),
                         };
                         let table = match self.read_variable(variable_name) {
                             Some(v) => {match v.value_type {
                                 ValueType::Table => v,
-                                _ => panic!("Error at line {}: Variable is not a table.", current_line_number),
+                                _ => panic!("Error at line {}: Variable is not a table.", current_line.line_number),
                             }},
-                            None => panic!("Error at line {}: Variable {} not found.", current_line_number, variable_name),
+                            None => panic!("Error at line {}: Variable {} not found.", current_line.line_number, variable_name),
                         }.to_owned();
                         let table_dimensions = match self.table_manager.get_dimensions(&table) {
                             Ok(v) => v,
-                            Err(e) => panic!("Error at line {}: Error reading from table. {}", current_line_number, e)
+                            Err(e) => panic!("Error at line {}: Error reading from table. {}", current_line.line_number, e)
                         };
                         let dimensions = current_line.items[2..(2 + table_dimensions.len())].iter().map(
                             |item| match self.line_item_as_value_pure(item) {
                                 Ok(value) => match value.value_type {
                                     ValueType::Number => value.number_value.round() as usize,
-                                    _ => panic!("Error at line {}: Invalid dimension. Each dimension must be a number.", current_line_number)
+                                    _ => panic!("Error at line {}: Invalid dimension. Each dimension must be a number.", current_line.line_number)
                                 },
-                                Err(e) => panic!("Error at line {}: Invalid dimension. {}", current_line_number, e),
+                                Err(e) => panic!("Error at line {}: Invalid dimension. {}", current_line.line_number, e),
                             }
                         ).collect::<Vec<usize>>();
                         let value = match self.line_item_as_value(&current_line.items[2 + table_dimensions.len()]) {
                             Ok(v) => v.clone(),
-                            Err(e) => panic!("Error at line {}: {}", current_line_number, e),
+                            Err(e) => panic!("Error at line {}: {}", current_line.line_number, e),
                         };
-                        match self.table_manager.put(&table, &dimensions, value) {
+                        match self.table_manager.put(&table, dimensions, value) {
                             Ok(()) => (),
-                            Err(e) => panic!("Error at line {}: Error writing to table. {}", current_line_number, e),
+                            Err(e) => panic!("Error at line {}: Error writing to table. {}", current_line.line_number, e),
                         };
                         current_line_number += 1;
                     },
+                    Command::SLICE => {
+                        let variable_name = match &current_line.items[1] {
+                            LineItem::Label(label) => label,
+                            _ => panic!("Error at line {}: Cannot read such variable.", current_line.line_number),
+                        };
+
+                        let table = match self.read_variable(variable_name) {
+                            Some(v) => match v.value_type {
+                                ValueType::Table => v,
+                                _ => panic!("Error at line {}: Variable is not a table.", current_line.line_number),
+                            },
+                            None => panic!("Error at line {}: Variable {} not found.", current_line.line_number, variable_name),
+                        };
+
+                        let n_dimensions = match table.value_type {
+                            ValueType::Table if !table.is_uninitialized() => table.slice_offset.as_ref().unwrap().len(),
+                            _ => panic!("Error at line {}: Value is not a table.", current_line.line_number),
+                        };
+
+                        let offset_to_add = current_line.items[2..2 + n_dimensions].iter().map(
+                            |item| match self.line_item_as_value_pure(item) {
+                                Ok(value) => match value.value_type {
+                                    ValueType::Number => value.number_value.round() as usize,
+                                    _ => panic!("Error at line {}: Invalid dimension. Each dimension must be a number.", current_line.line_number)
+                                },
+                                Err(e) => panic!("Error at line {}: Invalid dimension. {}", current_line.line_number, e),
+                            }
+                        ).collect::<Vec<usize>>();
+
+                        let new_value = match self.slice_table(table, &offset_to_add) {
+                            Ok(v) => v,
+                            Err(err) => panic!("Error at line {}: {}", current_line.line_number, err),
+                        };
+
+                        self.assign_variable(&"@save".to_string(), new_value);
+
+                        current_line_number += 1;
+                    }
                     Command::NOOP => {
                         current_line_number += 1;
                     },
@@ -367,12 +421,14 @@ impl VM {
                 string_value: None,
                 table_index: usize::MAX,
                 number_value: number_value.clone(),
+                slice_offset: None,
             }),
             LineItem::String(string_value) => Ok(Value {
                 value_type: super::value::ValueType::String,
                 string_value: Some(string_value.clone()),
                 table_index: usize::MAX,
                 number_value: 0f64,
+                slice_offset: None,
             }),
             LineItem::Label(name) => match self.read_variable(name) {
                 Some(v) => Ok(v.clone()),
@@ -534,6 +590,26 @@ impl VM {
             self.collect_garbage();
             self.table_creations = 0;
         }
+    }
+
+    pub fn slice_table(&self, table_value: &Value, offset: &Vec<usize>) -> Result<Value, &'static str> {
+        let table_dimensions = self.table_manager.get_dimensions(&table_value)?;
+
+        let new_offset: Vec<usize> = table_value.slice_offset.as_ref().unwrap().iter()
+            // Add the new offset
+            .zip(offset).map(|(a, b)| a + b)
+            // Check if the new offset is below capacity
+            .zip(table_dimensions)
+                .map(|(len, cap)| if &len < cap { Ok(len) } else {Err("Slice start too large.")})
+            .collect::<Result<_, _>>()?;
+        
+        Ok(Value {
+            value_type: ValueType::Table,
+            string_value: None,
+            number_value: 0f64,
+            table_index: table_value.table_index,
+            slice_offset: Some(new_offset),
+        })
     }
 
     pub fn collect_garbage(&mut self) {

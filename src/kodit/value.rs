@@ -7,11 +7,13 @@ pub enum ValueType {
     Table,
 }
 
+#[derive(Clone)]
 pub struct Value {
     pub value_type: ValueType,
     pub string_value: Option<String>,
     pub number_value: f64,
     pub table_index: usize,
+    pub slice_offset: Option<Vec<usize>>,
 }
 
 impl Value {
@@ -21,6 +23,7 @@ impl Value {
             string_value: None,
             number_value: 0f64,
             table_index: usize::MAX,
+            slice_offset: None,
         }
     }
 
@@ -30,6 +33,7 @@ impl Value {
             string_value: None,
             number_value: n,
             table_index: 0,
+            slice_offset: None,
         }
     }
 
@@ -40,6 +44,7 @@ impl Value {
             string_value: Some(string.to_owned()),
             number_value: 0f64,
             table_index: 0,
+            slice_offset: None,
         }
     }
 
@@ -53,17 +58,6 @@ impl Value {
 
     pub fn is_uninitialized(&self) -> bool {
         self.table_index == usize::MAX && matches!(self.value_type, ValueType::Table)
-    }
-}
-
-impl Clone for Value {
-    fn clone(&self) -> Self {
-        Self { 
-            value_type: self.value_type.clone(),
-            string_value: self.string_value.clone(),
-            number_value: self.number_value.clone(),
-            table_index: self.table_index.clone(),
-        }
     }
 }
 

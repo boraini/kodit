@@ -42,6 +42,7 @@ pub enum Command {
     TABLE,
     GET,
     PUT,
+    SLICE,
     NOOP,
 }
 
@@ -63,6 +64,7 @@ impl Command {
             "table" => Command::TABLE,
             "get" => Command::GET,
             "put" => Command::PUT,
+            "slice" => Command::SLICE,
             _ => Command::NOOP,
         }
     }
@@ -72,6 +74,8 @@ struct ParserState {
     pub current_table_depth: usize,
     pub current_line: Line,
 }
+
+static SYMBOLS: [&'static str; 10] = ["+", "==", "-", "*", "/", "%", "<", ">", "<=", ">="];
 
 pub fn decompose_lines(lines: &[String]) -> Result<Vec<Line>, String> {
     let mut parser_state = ParserState {
@@ -160,7 +164,7 @@ fn decompose_line(line: &String, parser_state: &mut ParserState) {
             let mut skip_start = 0;
             let mut skip_end = 0;
 
-            while current_line.chars().nth(start + skip_start) == Some('[') {
+            while start + skip_start < end && current_line.chars().nth(start + skip_start) == Some('[') {
                 match std::mem::take(&mut line_items) {
                     Some(items) => {
                         items.push(LineItem::Array(vec!()));
@@ -179,7 +183,7 @@ fn decompose_line(line: &String, parser_state: &mut ParserState) {
                 skip_start += 1;
             }
             
-            while current_line.chars().nth(end - skip_end - 1) == Some(']') {
+            while  end > skip_end && current_line.chars().nth(end - skip_end - 1) == Some(']') {
                 parser_state.current_table_depth -= 1;
                 skip_end += 1;
             }
@@ -222,16 +226,16 @@ fn decompose_line(line: &String, parser_state: &mut ParserState) {
             } else {
                 let the_string = &current_line[start + skip_start..end - skip_end];
 
-                if match the_string.chars().next() {
-                    Some(chr) => chr.is_numeric(),
-                    None => panic!("Empty argument encountered."),
-                } {
-                    let number: f64 = the_string.parse().unwrap();
-
-                    line_items.unwrap().push(LineItem::Number(number));
+                let line_item: LineItem = if SYMBOLS.contains(&the_string) {
+                    LineItem::Label(the_string.to_string())
                 } else {
-                    line_items.unwrap().push(LineItem::Label(the_string.to_string()));
-                }
+                    match the_string.parse() {
+                        Ok(n) => LineItem::Number(n),
+                        Err(_) => LineItem::Label(the_string.to_string()),
+                    }
+                };
+
+                line_items.unwrap().push(line_item);
 
                 current_line = &current_line[end..];
             }
