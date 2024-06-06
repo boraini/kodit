@@ -1,0 +1,104 @@
+# This is the basis specification. It is supposed to include every command since missing commands from other specification will be handled by this instead.
+
+name: "Turkish"
+version: 0
+commands:
+  goto:
+    format:
+      - 0 # label
+      - etiketine
+      - git
+
+  label:
+    format:
+      - 0 # label
+      - etiketi
+
+  if:
+    format:
+      - eğer
+      - 0 # condition
+      - ise
+      - 1 # true label
+      - 2 # false label
+
+  for:
+    format:
+      - her
+      - 0 # label
+      - 1 # end label
+      - 2 # variable name
+      - 3 # end value
+      - 4 # step size
+      - için
+
+  continue:
+    format:
+      - 0 # label
+      - etiketine
+      - devam
+      - et
+
+  function:
+    format:
+      - fonksiyon
+      - 0     # function name
+      - "..." # args
+
+  call:
+    format:
+      - çağır
+      - 0     # function name
+      - "..." # args
+  
+  return:
+    format:
+      - geri
+      - ver
+      - "..." # value (optional)
+
+  set:
+    format:
+      - 0 # variable name
+      - 1 # value
+      - olsun
+
+  sum:
+    format:
+      - 0 # left operand
+      - 1 # operator
+      - 2 # right operand
+      - kaç
+      - eder
+  
+  say:
+    format:
+      - 0 # value
+      - yaz
+  
+  ask:
+    format:
+      - 0 # value (prompt)
+      - diye
+      - sor
+
+  table:
+    format:
+      - tablo
+      - "..." # dimensions (2n values)
+  
+  get:
+    format:
+      - oku
+      - "..." # indices (n values)
+  
+  put:
+    format:
+      - yerleştir
+      - "..." # indices (n values), value in the end
+  
+  slice:
+    format:
+      - dilimle
+      - 0     # table value
+      - "..." # indices (2n values)

@@ -1,31 +1,113 @@
-use std::fmt::Display;
 use snailquote;
 
-pub enum LineItemType {
-    COMMAND,
-    LABEL,
-    STRING,
-    NUMBER,
+#[derive(Debug)]
+pub struct Line {
+    pub line_number: usize,
+    pub items: Vec<LineItem>,
 }
 
-pub struct LineItem {
-    pub item_type: LineItemType,
-    pub string_value: String,
-    pub number_value: f64,
+impl Line {
+    pub fn new(line_number: usize) -> Self {
+        Self {
+            line_number,
+            items: vec!(),
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
+pub enum LineItem {
+    Command(Command),
+    Label(String),
+    String(String),
+    Number(f64),
+    Array(Vec<LineItem>),
+    Table(Vec<usize>, Vec<LineItem>),
+}
+
+#[derive(Clone, Debug)]
+pub enum Command {
+    LABEL,
+    FUNCTION,
+    CALL,
+    RETURN,
+    GOTO,
+    IF,
+    FOR,
+    CONTINUE,
+    SUM,
+    SAY,
+    ASK,
+    SET,
+    TABLE,
+    GET,
+    PUT,
+    SLICE,
+    NOOP,
+}
+
+impl Command {
+    pub fn from_string(name: &str) -> Command {
+        match name.to_lowercase().as_str() {
+            "label" => Command::LABEL,
+            "function" => Command::FUNCTION,
+            "call" => Command::CALL,
+            "return" => Command::RETURN,
+            "goto" => Command::GOTO,
+            "if" => Command::IF,
+            "for" => Command::FOR,
+            "continue" => Command::CONTINUE,
+            "sum" => Command::SUM,
+            "say" => Command::SAY,
+            "ask" => Command::ASK,
+            "set" => Command::SET,
+            "table" => Command::TABLE,
+            "get" => Command::GET,
+            "put" => Command::PUT,
+            "slice" => Command::SLICE,
+            _ => Command::NOOP,
+        }
+    }
+}
+
+struct ParserState {
+    pub current_table_depth: usize,
+    pub current_line: Line,
+}
+
+static SYMBOLS: [&'static str; 10] = ["+", "==", "-", "*", "/", "%", "<", ">", "<=", ">="];
+
+pub fn decompose_lines(lines: &[String]) -> Result<Vec<Line>, String> {
+    let mut parser_state = ParserState {
+        current_table_depth: 0,
+        current_line: Line::new(1),
+    };
+
+    let mut produced_lines = vec!();
+
+    for i in 0..lines.len() {
+        decompose_line(&lines[i], &mut parser_state);
+        if parser_state.current_table_depth == 0 {
+            let raw_items = &parser_state.current_line.items;
+            if raw_items.is_empty() { continue; }
+            let items = arrays_to_tables(raw_items)?;
+            produced_lines.push(Line {line_number: parser_state.current_line.line_number, items });
+            parser_state.current_line = Line::new(i + 2);
+        }
+    }
+
+    Ok(produced_lines)
 }
 
 /// Decompose line into a list of line items. This corresponds to s-expressions.
-pub fn decompose_line(line: &String) -> Vec<LineItem> {
-    let mut line_items: Vec<LineItem> = Vec::new();
-    // let mut chars = line.chars();
-    // let mut left_len = line.len();
+fn decompose_line(line: &String, parser_state: &mut ParserState) {
     let mut current_line = &line[..];
 
     loop {
         let startspace = current_line.find(|c| !char::is_whitespace(c));
 
         let start = match startspace {
-            None => return line_items,
+            None => return,
             Some(idx) => idx,
         };
 
@@ -39,15 +121,76 @@ pub fn decompose_line(line: &String) -> Vec<LineItem> {
         if start >= end {
             break;
         }
-        
-        if line_items.is_empty() {
-            let command = line[start..end].to_owned();
 
-            line_items.push(LineItem { item_type: LineItemType::COMMAND, string_value: command, number_value: 0.0 });
+        // Comment
+        if end - start >= 2 && &line[start..start + 2] == "//" {
+            break;
+        }
 
-            current_line = &current_line[end..];
-        } else {
-            if current_line.chars().nth(start) == Some('"') {
+        let mut line_items = {
+            let mut current_depth = parser_state.current_table_depth;
+            let mut current_line_items = Some(&mut parser_state.current_line.items);
+
+            while current_depth > 0 {
+                // Algorithm based on https://rust-unofficial.github.io/too-many-lists/first-pop.html
+                match std::mem::take(&mut current_line_items) {
+                    Some(current_items) => {
+                        let last_index = current_items.len() - 1;
+                        match current_items.get_mut(last_index) {
+                            Some(item) => match item {
+                                LineItem::Array(next_items) => {
+                                    current_line_items = Some(next_items);
+                                },
+                                _ => panic!("Internal error with table depth traversal on line {}. The current array does not end with a table.", parser_state.current_line.line_number),
+                            },
+                            None => panic!("Internal error with table depth traversal on line {}. The current array is empty.", parser_state.current_line.line_number),
+                        };
+                    },
+                    None => panic!("Internal error with table depth traversal on line {}. There is no current array.", parser_state.current_line.line_number),
+                };
+                current_depth -= 1;
+            }
+
+            current_line_items
+        };
+
+        {
+            let mut skip_start = 0;
+            let mut skip_end = 0;
+
+            while start + skip_start < end && current_line.chars().nth(start + skip_start) == Some('[') {
+                match std::mem::take(&mut line_items) {
+                    Some(items) => {
+                        items.push(LineItem::Array(vec!()));
+
+                        let last_index = (&items).len() - 1;
+                        let new_line_items  = match items.get_mut(last_index).unwrap() {
+                            LineItem::Array(xs) => xs,
+                            _ => panic!("Unexpected error in parser."),
+                        };
+
+                        line_items.replace(new_line_items);
+                    },
+                    None => panic!("Unexpected error in parser."),
+                }
+                parser_state.current_table_depth += 1;
+                skip_start += 1;
+            }
+            
+            while  end > skip_end && current_line.chars().nth(end - skip_end - 1) == Some(']') {
+                parser_state.current_table_depth -= 1;
+                skip_end += 1;
+            }
+
+            // this item was only the square bracket
+            if (start + skip_start) >= (end - skip_end) {
+                current_line = &current_line[end..];
+                continue;
+            }
+
+            if current_line.chars().nth(start + skip_start) == Some('"') {
+                // We redefine the variable for the block so we can reuse old code.
+                let start = start + skip_start;
                 let mut closed = false;
                 let mut position = 0;
                 let mut skip = 1;
@@ -70,34 +213,55 @@ pub fn decompose_line(line: &String) -> Vec<LineItem> {
 
                 let the_string = snailquote::unescape(&current_line[start..position + 1]);
 
-                line_items.push(LineItem { item_type: LineItemType::STRING, string_value: the_string.unwrap(), number_value: 0.0 });
+                line_items.unwrap().push(LineItem::String(the_string.unwrap()));
 
-                current_line = &current_line[position + 1..];
+                current_line = &current_line[position + 1 + skip_end..];
             // number or label
-            } else  {
-                let the_string = &current_line[start..end];
+            } else {
+                let the_string = &current_line[start + skip_start..end - skip_end];
 
-                if match the_string.chars().next() {
-                    Some(chr) => chr.is_numeric(),
-                    None => panic!("Empty argument encountered."),
-                } {
-                    let number: f64 = the_string.parse().unwrap();
-
-                    line_items.push(LineItem { item_type: LineItemType::NUMBER, string_value: the_string.to_string(), number_value: number });
+                let line_item: LineItem = if SYMBOLS.contains(&the_string) {
+                    LineItem::Label(the_string.to_string())
                 } else {
-                    line_items.push(LineItem { item_type: LineItemType::LABEL, string_value: the_string.to_string(), number_value: 0.0 });
-                }
+                    match the_string.parse() {
+                        Ok(n) => LineItem::Number(n),
+                        Err(_) => LineItem::Label(the_string.to_string()),
+                    }
+                };
+
+                line_items.unwrap().push(line_item);
 
                 current_line = &current_line[end..];
             }
         }
     }
-
-    line_items
 }
 
-impl Display for LineItem {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Line Item {} {}", self.string_value, self.number_value)
+pub fn arrays_to_tables(line_items: &Vec<LineItem>) -> Result<Vec<LineItem>, String> {
+    let mut result: Vec<LineItem> = vec!();
+    let mut i = 0;
+
+    while i < line_items.len() {
+        result.push(match line_items.get(i).unwrap() {
+            LineItem::Array(dims) => {
+                let dimensions: Vec<usize> = dims.iter().map(|v| match v {
+                    LineItem::Number(x) => Ok(x.round() as usize),
+                    _ => return Err("Table dimensions must be constant number literals.".to_string()),
+                }).collect::<Result<_, String>>()?;
+
+                i += 1;
+
+                let data: Vec<LineItem> = match &line_items.get(i).ok_or("Arrays come in pairs of dimension and data next to each other.")? {
+                    LineItem::Array(array_items) => arrays_to_tables(array_items)?,
+                    _ => return Err("Arrays come in pairs of dimension and data next to each other.".to_string()),
+                };
+                
+                LineItem::Table(dimensions, data)
+            }
+            _ => line_items[i].clone()
+        });
+        i += 1;
     }
+
+    Ok(result)
 }

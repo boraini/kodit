@@ -1,0 +1,6 @@
+sum "abc" < "abd"
+say @save
+sum "ebd" >= "abd"
+say @save
+sum "abc" <= "abc"
+say @save

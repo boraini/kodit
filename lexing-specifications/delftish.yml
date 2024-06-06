@@ -1,0 +1,95 @@
+name: "Delftish"
+version: 0
+commands:
+  goto:
+    format:
+      - goe
+      - near
+      - 0 # label
+
+  label:
+    format:
+      - forename
+      - 0 # label
+
+  if:
+    format:
+      - if
+      - 0 # condition
+      - 1 # true label
+      - 2 # false label
+
+  for:
+    format:
+      - elke
+      - 0 # label
+      - 1 # variable
+      - 2 # end exclusive
+      - 3 # step size
+
+  continue:
+    format:
+      - thoorgoe
+      - 0 # label
+      - me
+
+  function:
+    format:
+      - fonksiyon
+      - 0     # function name
+      - "..." # args
+
+  call:
+    format:
+      - forecall
+      - 0     # function name
+      - "..." # args
+  
+  return:
+    format:
+      - return
+      - "..." # value (optional)
+
+  set:
+    format:
+      - 0 # variable name
+      - 1 # value
+      - hai
+
+  sum:
+    format:
+      - sum
+      - 0 # left operand
+      - 1 # operator
+      - 2 # right operand
+  
+  say:
+    format:
+      - foretell
+      - 0 # value
+  
+  ask:
+    format:
+      - ask
+      - 0 # value (prompt)
+
+  table:
+    format:
+      - table
+      - "..." # dimensions (2n values)
+  
+  get:
+    format:
+      - neem
+      - "..." # indices (n values)
+  
+  put:
+    format:
+      - put
+      - "..." # indices (n values), value in the end
+  
+  slice:
+    format:
+      - slice
+      - 0     # table value
+      - "..." # indices (2n values)

@@ -1,0 +1,96 @@
+# This is the basis specification. It is supposed to include every command since missing commands from other specification will be handled by this instead.
+
+name: "English (Default)"
+version: 0
+commands:
+  goto:
+    format:
+      - goto
+      - 0 # label
+
+  label:
+    format:
+      - label
+      - 0 # label
+
+  if:
+    format:
+      - if
+      - 0 # condition
+      - 1 # true label
+      - 2 # false label
+
+  for:
+    format:
+      - for
+      - 0 # label
+      - 1 # end label
+      - 2 # variable
+      - 3 # end value
+      - "..." # step size (optional)
+
+  continue:
+    format:
+      - continue
+      - 0 # label
+
+  function:
+    format:
+      - function
+      - 0     # function name
+      - "..." # args
+
+  call:
+    format:
+      - call
+      - 0     # function name
+      - "..." # args
+  
+  return:
+    format:
+      - return
+      - "..." # value (optional)
+
+  set:
+    format:
+      - set
+      - 0 # variable name
+      - 1 # value
+
+  sum:
+    format:
+      - sum
+      - 0 # left operand
+      - 1 # operator
+      - 2 # right operand
+  
+  say:
+    format:
+      - say
+      - 0 # value
+  
+  ask:
+    format:
+      - ask
+      - 0 # value (prompt)
+
+  table:
+    format:
+      - table
+      - "..." # dimensions (2n values)
+  
+  get:
+    format:
+      - get
+      - "..." # indices (n values)
+  
+  put:
+    format:
+      - put
+      - "..." # indices (n values), value in the end
+  
+  slice:
+    format:
+      - slice
+      - 0     # table value
+      - "..." # indices (2n values)

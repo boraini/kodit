@@ -1,0 +1,14 @@
+woordea [2] ["love" "life"] hai
+
+i 0 hai
+
+elke loop loop_eind i 2 1
+foretell "Pikmin is "
+neem woordea i
+foretell @save 
+foretell "!\n"
+thoorgoe loop me
+forename loop_eind
+
+goe near eind
+forename eind
