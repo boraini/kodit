@@ -154,13 +154,7 @@ fn decompose_line(line: &String, parser_state: &mut ParserState) {
             current_line_items
         };
 
-        if parser_state.current_table_depth == 0 && line_items.as_ref().unwrap().is_empty() {
-            let command = line[start..end].to_owned();
-
-            line_items.unwrap().push(LineItem::Command(Command::from_string(command.as_str())));
-
-            current_line = &current_line[end..];
-        } else {
+        {
             let mut skip_start = 0;
             let mut skip_end = 0;
 

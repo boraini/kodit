@@ -1,0 +1,14 @@
+kelimeler [2] ["candır" "hayattır"] olsun
+
+i 0 olsun
+
+her dongu dongu_sonu i 2 1 için
+"Pikmin " yaz
+oku kelimeler i
+@save yaz 
+"!\n" yaz
+dongu etiketine devam et
+dongu_sonu etiketi
+
+son etiketine git
+son etiketi

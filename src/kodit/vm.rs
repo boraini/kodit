@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use std::io::{self, Write};
 
 use super::environment::{Environment, Label};
-use super::line::{decompose_lines, Command, Line, LineItem};
+use super::line::{Command, Line, LineItem};
 use super::value::{Value, ValueType};
 
 use super::table::*;
@@ -42,13 +42,6 @@ impl VM {
             table_manager: TableManager::new(),
             table_creations: 0,
         }
-    }
-
-    pub fn evaluate_lines(&mut self, file: &String, lines: &[String]) {
-        // We don't remove empty lines because possible debugging would require the exact line number.
-        let code = decompose_lines(lines).unwrap();
-
-        self.evaluate(file, &code);
     }
 
     pub fn evaluate(&mut self, file: &String, code: &Vec<Line>) {
